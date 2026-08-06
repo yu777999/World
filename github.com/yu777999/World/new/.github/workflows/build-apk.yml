@@ -1,0 +1,149 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ソースを取得
+        uses: actions/checkout@v4
+
+      - name: Node.js をセットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: JDK 21 をセットアップ
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Android SDK をセットアップ
+        uses: android-actions/setup-android@v3
+
+      - name: Capacitor をインストール
+        run: |
+          npm init -y
+          npm install @capacitor/core@8 @capacitor/cli@8 @capacitor/android@8
+
+      - name: Capacitor 設定を作成
+        run: |
+          cat > capacitor.config.json << 'CFG'
+          {
+            "appId": "com.worldmonitor.app",
+            "appName": "World Monitor",
+            "webDir": "www",
+            "server": { "androidScheme": "https" },
+            "android": { "allowMixedContent": true },
+            "plugins": { "SplashScreen": { "launchShowDuration": 0 } }
+          }
+          CFG
+
+      - name: Android プロジェクトを生成
+        run: npx cap add android
+
+      - name: ダークテーマを適用
+        run: |
+          RES=android/app/src/main/res
+          cat > $RES/values/colors.xml << 'XML'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="colorPrimary">#0A0D13</color>
+              <color name="colorPrimaryDark">#0A0D13</color>
+              <color name="colorAccent">#E8A33D</color>
+              <color name="ic_launcher_background">#0A0D13</color>
+          </resources>
+          XML
+          cat > $RES/values/styles.xml << 'XML'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <style name="AppTheme" parent="Theme.AppCompat.NoActionBar">
+                  <item name="colorPrimary">@color/colorPrimary</item>
+                  <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+                  <item name="colorAccent">@color/colorAccent</item>
+              </style>
+              <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.NoActionBar">
+                  <item name="windowActionBar">false</item>
+                  <item name="windowNoTitle">true</item>
+                  <item name="android:background">@color/colorPrimary</item>
+                  <item name="android:statusBarColor">@color/colorPrimaryDark</item>
+                  <item name="android:navigationBarColor">@color/colorPrimaryDark</item>
+              </style>
+              <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+                  <item name="android:background">@drawable/splash</item>
+                  <item name="android:statusBarColor">@color/colorPrimaryDark</item>
+              </style>
+          </resources>
+          XML
+
+      - name: アイコンとスプラッシュを生成
+        run: |
+          pip install --quiet pillow || pip install --quiet --break-system-packages pillow
+          python3 - << 'PY'
+          from PIL import Image, ImageDraw
+          import os, math
+
+          BG=(10,13,19,255); AMBER=(232,163,61,255); CYAN=(79,209,197,255); LINE=(35,43,61,255)
+
+          def icon(size, bg=True):
+              S=1024
+              img=Image.new('RGBA',(S,S),BG if bg else (0,0,0,0))
+              d=ImageDraw.Draw(img)
+              cx=cy=S/2; r=S*0.30
+              d.ellipse([cx-r,cy-r,cx+r,cy+r], outline=LINE, width=int(S*0.012))
+              for f in (0.34,0.68):
+                  rr=r*f
+                  d.ellipse([cx-rr,cy-r,cx+rr,cy+r], outline=LINE, width=int(S*0.010))
+              for dy in (-0.62,0,0.62):
+                  yy=cy+r*dy
+                  hw=r*math.sqrt(max(0,1-dy*dy))
+                  d.line([cx-hw,yy,cx+hw,yy], fill=LINE, width=int(S*0.010))
+              d.arc([cx-r,cy-r,cx+r,cy+r], start=-115, end=25, fill=AMBER, width=int(S*0.030))
+              for (bx,by,col,br) in [(-0.42,-0.30,AMBER,0.045),(0.30,0.12,CYAN,0.035),(0.05,-0.55,AMBER,0.028)]:
+                  px=cx+r*bx; py=cy+r*by; pr=S*br
+                  d.ellipse([px-pr,py-pr,px+pr,py+pr], fill=col)
+              return img.resize((size,size), Image.LANCZOS)
+
+          base='android/app/src/main/res'
+          for k,v in {'mdpi':48,'hdpi':72,'xhdpi':96,'xxhdpi':144,'xxxhdpi':192}.items():
+              p=f'{base}/mipmap-{k}'; os.makedirs(p,exist_ok=True)
+              im=icon(v); im.save(f'{p}/ic_launcher.png'); im.save(f'{p}/ic_launcher_round.png')
+              fg=Image.new('RGBA',(v*2,v*2),(0,0,0,0))
+              inner=icon(int(v*2*0.62), bg=False)
+              fg.paste(inner,(int(v*2*0.19),int(v*2*0.19)),inner)
+              fg.save(f'{p}/ic_launcher_foreground.png')
+
+          for k,v in {'mdpi':(320,480),'hdpi':(480,800),'xhdpi':(720,1280),'xxhdpi':(960,1600),'xxxhdpi':(1280,1920)}.items():
+              for orient,size in [('port',v),('land',(v[1],v[0]))]:
+                  p=f'{base}/drawable-{orient}-{k}'; os.makedirs(p,exist_ok=True)
+                  sp=Image.new('RGBA',size,BG)
+                  ic=icon(int(min(size)*0.32),bg=False)
+                  sp.paste(ic,((size[0]-ic.width)//2,(size[1]-ic.height)//2),ic)
+                  sp.convert('RGB').save(f'{p}/splash.png')
+          sp=Image.new('RGB',(480,800),BG[:3]); ic=icon(160,bg=False)
+          sp.paste(ic,(160,320),ic); sp.save(f'{base}/drawable/splash.png')
+          print('icons done')
+          PY
+
+      - name: Web資産を同期
+        run: npx cap sync android
+
+      - name: gradlew に実行権限を付与
+        run: chmod +x ./android/gradlew
+
+      - name: デバッグAPKをビルド
+        working-directory: ./android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: APK をアップロード
+        uses: actions/upload-artifact@v4
+        with:
+          name: world-monitor-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
