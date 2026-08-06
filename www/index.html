@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0A0D13">
+<title>WORLD MONITOR</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root{
+    --bg: #0a0d13;
+    --bg2: #0f1420;
+    --panel: #12182699;
+    --panel-solid: #121826;
+    --line: #232b3d;
+    --amber: #e8a33d;
+    --amber-dim: #8a642a;
+    --cyan: #4fd1c5;
+    --red: #e5484d;
+    --text: #e4e7ec;
+    --muted: #6b7688;
+    --muted2: #4a5468;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased;
+    height:100%; overflow-x:hidden; overscroll-behavior:none;}
+  body{
+    background-image:
+      radial-gradient(circle at 15% 0%, #16203099 0%, transparent 45%),
+      radial-gradient(circle at 90% 10%, #10192599 0%, transparent 40%);
+  }
+  .mono{font-family:'JetBrains Mono',monospace;}
+
+  /* ---- top status bar ---- */
+  header{
+    position:sticky; top:0; z-index:30;
+    background:linear-gradient(180deg,#0d1119 0%, #0d1119cc 100%);
+    backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);
+    padding:calc(10px + env(safe-area-inset-top)) 14px 8px;
+  }
+  .brand-row{display:flex; align-items:center; justify-content:space-between;}
+  .brand{display:flex; align-items:center; gap:8px;}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--amber);
+    box-shadow:0 0 8px var(--amber); animation:pulse 1.8s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1} 50%{opacity:.25}}
+  .brand-title{font-family:'JetBrains Mono',monospace; font-weight:800; font-size:14px;
+    letter-spacing:2px; color:var(--text);}
+  .brand-sub{font-size:9px; letter-spacing:1.5px; color:var(--muted); margin-top:1px;}
+  .clock{font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600; color:var(--amber); text-align:right;}
+  .clock-sub{font-size:9px; color:var(--muted2); letter-spacing:1px; text-align:right;}
+  .scan{height:1px; margin-top:9px; background:linear-gradient(90deg, transparent, var(--amber-dim) 20%, var(--amber) 50%, var(--amber-dim) 80%, transparent);
+    opacity:.55;}
+
+  /* ---- tabs ---- */
+  nav.tabs{
+    position:sticky; top:calc(52px + env(safe-area-inset-top)); z-index:29;
+    display:flex; overflow-x:auto; gap:0; background:var(--bg2);
+    border-bottom:1px solid var(--line); scrollbar-width:none;
+  }
+  nav.tabs::-webkit-scrollbar{display:none;}
+  nav.tabs button{
+    flex:0 0 auto; background:none; border:none; color:var(--muted);
+    font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:1.2px;
+    padding:11px 14px; border-bottom:2px solid transparent; white-space:nowrap;
+  }
+  nav.tabs button.active{color:var(--amber); border-bottom-color:var(--amber);}
+
+  main{padding:14px 12px calc(40px + env(safe-area-inset-bottom)); max-width:640px; margin:0 auto;}
+  section.view{display:none;}
+  section.view.active{display:block; animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:translateY(0)}}
+
+  .panel{
+    background:var(--panel-solid); border:1px solid var(--line); border-radius:3px;
+    margin-bottom:12px; overflow:hidden;
+  }
+  .panel-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:9px 12px; border-bottom:1px solid var(--line); background:#0f1420;
+  }
+  .panel-head .tag{font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:1.5px; color:var(--muted);}
+  .panel-head .tag b{color:var(--cyan); font-weight:700;}
+  .panel-head .ts{font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--muted2);}
+  .panel-body{padding:10px 12px;}
+
+  /* overview grid */
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .stat{background:var(--panel-solid); border:1px solid var(--line); border-radius:3px; padding:12px;}
+  .stat .n{font-family:'JetBrains Mono',monospace; font-size:22px; font-weight:800; color:var(--text);}
+  .stat .l{font-size:10px; letter-spacing:1px; color:var(--muted); margin-top:3px;}
+  .stat.up .n{color:var(--cyan);}
+  .stat.down .n{color:var(--red);}
+
+  /* rows */
+  .row{display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--line);}
+  .row:last-child{border-bottom:none;}
+  .row .l1{font-size:13px; color:var(--text); line-height:1.35;}
+  .row .l2{font-size:10.5px; color:var(--muted); margin-top:2px;}
+  .pill{font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; padding:2px 7px; border-radius:20px;}
+  .pill.up{color:var(--cyan); background:#4fd1c51a;}
+  .pill.down{color:var(--red); background:#e5484d1a;}
+  .badge{font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:.5px; color:var(--amber);
+    border:1px solid var(--amber-dim); padding:1px 5px; border-radius:2px; margin-right:6px;}
+
+  .mag-badge{font-family:'JetBrains Mono',monospace; font-weight:800; font-size:13px; width:38px; height:38px;
+    display:flex; align-items:center; justify-content:center; border-radius:4px; flex:0 0 auto; margin-right:10px;}
+  .mag1{background:#4fd1c51f; color:var(--cyan);}
+  .mag2{background:#e8a33d1f; color:var(--amber);}
+  .mag3{background:#e5484d1f; color:var(--red);}
+
+  .empty, .loading{padding:22px 8px; text-align:center; color:var(--muted); font-size:12px; font-family:'JetBrains Mono',monospace;}
+  .loading::after{content:'●●●'; display:block; margin-top:6px; letter-spacing:4px; animation:pulse 1.2s infinite;}
+  .err{color:var(--red);}
+
+  .refresh-btn{background:none; border:1px solid var(--line); color:var(--muted); font-family:'JetBrains Mono',monospace;
+    font-size:9px; letter-spacing:1px; padding:3px 8px; border-radius:2px;}
+  .refresh-btn:active{border-color:var(--amber); color:var(--amber);}
+
+  footer{text-align:center; padding:10px; color:var(--muted2); font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:1px;}
+  a{color:var(--cyan); text-decoration:none;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand-row">
+    <div class="brand">
+      <div class="dot"></div>
+      <div>
+        <div class="brand-title">WORLD MONITOR</div>
+        <div class="brand-sub">GLOBAL SIGNAL AGGREGATOR</div>
+      </div>
+    </div>
+    <div>
+      <div class="clock mono" id="clock">--:--:--</div>
+      <div class="clock-sub" id="clockDate">UTC —</div>
+    </div>
+  </div>
+  <div class="scan"></div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button data-tab="overview" class="active">概況</button>
+  <button data-tab="news">ニュース</button>
+  <button data-tab="crypto">暗号資産</button>
+  <button data-tab="quakes">地震・災害</button>
+  <button data-tab="fx">為替</button>
+</nav>
+
+<main>
+
+  <section class="view active" id="view-overview">
+    <div class="grid2" style="margin-bottom:12px;">
+      <div class="stat" id="statBtc"><div class="n">--</div><div class="l">BTC / USD</div></div>
+      <div class="stat" id="statEth"><div class="n">--</div><div class="l">ETH / USD</div></div>
+      <div class="stat" id="statQuake"><div class="n">--</div><div class="l">主要地震（7日間）</div></div>
+      <div class="stat" id="statUsdJpy"><div class="n">--</div><div class="l">USD / JPY</div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><span class="tag">SYSTEM <b>STATUS</b></span><span class="ts">LIVE FEED</span></div>
+      <div class="panel-body">
+        <div class="row"><div class="l1">ニュースフィード<div class="l2">世界主要ニュース（BBC World）</div></div><span class="pill up">ONLINE</span></div>
+        <div class="row"><div class="l1">市場データ<div class="l2">暗号資産・為替レート</div></div><span class="pill up">ONLINE</span></div>
+        <div class="row"><div class="l1">災害モニター<div class="l2">USGS 地震観測ネットワーク</div></div><span class="pill up">ONLINE</span></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><span class="tag">ABOUT</span></div>
+      <div class="panel-body" style="font-size:12px; color:var(--muted); line-height:1.6;">
+        公開APIから取得したデータをリアルタイムで集約するダッシュボードです。タブを切り替えて各カテゴリを確認してください。各パネルは自動更新されます。
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="view-news">
+    <div class="panel">
+      <div class="panel-head"><span class="tag">WORLD <b>NEWS</b></span><button class="refresh-btn" onclick="loadNews()">REFRESH</button></div>
+      <div class="panel-body" id="newsBody"><div class="loading">LOADING</div></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-crypto">
+    <div class="panel">
+      <div class="panel-head"><span class="tag">CRYPTO <b>MARKETS</b></span><button class="refresh-btn" onclick="loadCrypto()">REFRESH</button></div>
+      <div class="panel-body" id="cryptoBody"><div class="loading">LOADING</div></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-quakes">
+    <div class="panel">
+      <div class="panel-head"><span class="tag">SEISMIC <b>ACTIVITY</b></span><button class="refresh-btn" onclick="loadQuakes()">REFRESH</button></div>
+      <div class="panel-body" id="quakeBody"><div class="loading">LOADING</div></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-fx">
+    <div class="panel">
+      <div class="panel-head"><span class="tag">FX <b>RATES</b></span><span class="ts">BASE: USD</span></div>
+      <div class="panel-body" id="fxBody"><div class="loading">LOADING</div></div>
+    </div>
+  </section>
+
+</main>
+
+<footer>WORLD MONITOR — DATA: COINGECKO / USGS / OPEN.ER-API / RSS2JSON</footer>
+
+<script>
+/* ---- tabs ---- */
+document.getElementById('tabs').addEventListener('click', e=>{
+  const btn = e.target.closest('button'); if(!btn) return;
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('section.view').forEach(s=>s.classList.remove('active'));
+  document.getElementById('view-'+btn.dataset.tab).classList.add('active');
+});
+
+/* ---- clock ---- */
+function tickClock(){
+  const now = new Date();
+  const hh = String(now.getUTCHours()).padStart(2,'0');
+  const mm = String(now.getUTCMinutes()).padStart(2,'0');
+  const ss = String(now.getUTCSeconds()).padStart(2,'0');
+  document.getElementById('clock').textContent = `${hh}:${mm}:${ss}`;
+  const opts = {month:'short', day:'2-digit', year:'numeric', timeZone:'UTC'};
+  document.getElementById('clockDate').textContent = 'UTC ' + now.toLocaleDateString('en-US', opts);
+}
+tickClock(); setInterval(tickClock, 1000);
+
+function timeAgo(iso){
+  const s = Math.floor((Date.now() - new Date(iso).getTime())/1000);
+  if(s<60) return s+'秒前';
+  if(s<3600) return Math.floor(s/60)+'分前';
+  if(s<86400) return Math.floor(s/3600)+'時間前';
+  return Math.floor(s/86400)+'日前';
+}
+
+/* ---- crypto ---- */
+async function loadCrypto(){
+  const body = document.getElementById('cryptoBody');
+  body.innerHTML = '<div class="loading">LOADING</div>';
+  try{
+    const res = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1&price_change_percentage=24h');
+    const data = await res.json();
+    body.innerHTML = data.map(c=>{
+      const up = c.price_change_percentage_24h >= 0;
+      return `<div class="row">
+        <div class="l1"><span class="badge">${c.symbol.toUpperCase()}</span>${c.name}
+          <div class="l2">時価総額順位 #${c.market_cap_rank}</div></div>
+        <div style="text-align:right;">
+          <div class="mono" style="font-size:13px;">$${c.current_price.toLocaleString(undefined,{maximumFractionDigits:c.current_price<1?4:2})}</div>
+          <span class="pill ${up?'up':'down'}">${up?'▲':'▼'} ${Math.abs(c.price_change_percentage_24h).toFixed(2)}%</span>
+        </div>
+      </div>`;
+    }).join('');
+    const btc = data.find(c=>c.symbol==='btc'); const eth = data.find(c=>c.symbol==='eth');
+    if(btc) updateStat('statBtc', '$'+btc.current_price.toLocaleString(), btc.price_change_percentage_24h);
+    if(eth) updateStat('statEth', '$'+eth.current_price.toLocaleString(), eth.price_change_percentage_24h);
+  }catch(err){
+    body.innerHTML = '<div class="empty err">データ取得に失敗しました。REFRESHを押して再試行してください。</div>';
+  }
+}
+function updateStat(id, text, change){
+  const el = document.getElementById(id);
+  el.querySelector('.n').textContent = text;
+  el.classList.remove('up','down');
+  el.classList.add(change>=0?'up':'down');
+}
+
+/* ---- quakes (USGS) ---- */
+async function loadQuakes(){
+  const body = document.getElementById('quakeBody');
+  body.innerHTML = '<div class="loading">LOADING</div>';
+  try{
+    const res = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_week.geojson');
+    const data = await res.json();
+    const feats = data.features.sort((a,b)=>b.properties.mag - a.properties.mag).slice(0,15);
+    document.getElementById('statQuake').querySelector('.n').textContent = data.features.length;
+    body.innerHTML = feats.map(f=>{
+      const p = f.properties; const mag = p.mag;
+      const cls = mag>=6?'mag3': mag>=5.5?'mag2':'mag1';
+      return `<div class="row">
+        <div style="display:flex; align-items:center;">
+          <div class="mag-badge ${cls}">${mag.toFixed(1)}</div>
+          <div><div class="l1">${p.place || '不明な場所'}</div>
+          <div class="l2">${timeAgo(p.time)} ・ 深さ ${f.geometry.coordinates[2].toFixed(0)}km</div></div>
+        </div>
+      </div>`;
+    }).join('') || '<div class="empty">過去7日間、M4.5以上の地震はありません。</div>';
+  }catch(err){
+    body.innerHTML = '<div class="empty err">データ取得に失敗しました。REFRESHを押して再試行してください。</div>';
+  }
+}
+
+/* ---- FX ---- */
+async function loadFx(){
+  const body = document.getElementById('fxBody');
+  try{
+    const res = await fetch('https://open.er-api.com/v6/latest/USD');
+    const data = await res.json();
+    const pairs = ['JPY','EUR','GBP','CNY','KRW','INR','AUD','CAD','CHF','BRL'];
+    body.innerHTML = pairs.map(p=>{
+      const rate = data.rates[p];
+      return `<div class="row"><div class="l1">USD / ${p}</div><div class="mono" style="font-size:13px;">${rate?rate.toFixed(3):'--'}</div></div>`;
+    }).join('');
+    if(data.rates.JPY) document.getElementById('statUsdJpy').querySelector('.n').textContent = data.rates.JPY.toFixed(2);
+  }catch(err){
+    body.innerHTML = '<div class="empty err">データ取得に失敗しました。</div>';
+  }
+}
+
+/* ---- News (rss2json, BBC World) ---- */
+async function loadNews(){
+  const body = document.getElementById('newsBody');
+  body.innerHTML = '<div class="loading">LOADING</div>';
+  try{
+    const res = await fetch('https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent('http://feeds.bbci.co.uk/news/world/rss.xml'));
+    const data = await res.json();
+    if(data.status !== 'ok') throw new Error('feed error');
+    body.innerHTML = data.items.slice(0,12).map(item=>{
+      return `<div class="row">
+        <a href="${item.link}" target="_blank" style="display:block; width:100%;">
+          <div class="l1" style="color:var(--text);">${item.title}</div>
+          <div class="l2">${timeAgo(item.pubDate)} ・ BBC World</div>
+        </a>
+      </div>`;
+    }).join('');
+  }catch(err){
+    body.innerHTML = '<div class="empty err">ニュースフィードの取得に失敗しました。REFRESHを押して再試行してください。</div>';
+  }
+}
+
+/* ---- init ---- */
+loadCrypto(); loadQuakes(); loadFx(); loadNews();
+setInterval(loadCrypto, 60000);
+setInterval(loadFx, 120000);
+</script>
+
+</body>
+</html>
