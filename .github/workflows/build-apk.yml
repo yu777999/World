@@ -10,57 +10,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      - name: Setup JDK
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v3
 
-      - name: Install Capacitor
+      - name: Setup project
         run: |
           npm init -y
           npm install @capacitor/core@8 @capacitor/cli@8 @capacitor/android@8
+          echo '{"appId":"com.worldmonitor.app","appName":"World Monitor","webDir":"www","server":{"androidScheme":"https"},"android":{"allowMixedContent":true}}' > capacitor.config.json
+          npx cap add android
+          npx cap sync android
+          chmod +x ./android/gradlew
 
-      - name: Create config
-        run: |
-          cat > capacitor.config.json << 'CFG'
-          {
-            "appId": "com.worldmonitor.app",
-            "appName": "World Monitor",
-            "webDir": "www",
-            "server": { "androidScheme": "https" },
-            "android": { "allowMixedContent": true }
-          }
-          CFG
+      - name: Build APK
+        run: cd android && ./gradlew assembleDebug --no-daemon
 
-      - name: Add Android platform
-        run: npx cap add android
-
-      - name: Apply dark theme
-        run: |
-          RES=android/app/src/main/res
-          cat > $RES/values/colors.xml << 'XML'
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <color name="colorPrimary">#0A0D13</color>
-              <color name="colorPrimaryDark">#0A0D13</color>
-              <color name="colorAccent">#E8A33D</color>
-              <color name="ic_launcher_background">#0A0D13</color>
-          </resources>
-          XML
-          cat > $RES/values/styles.xml << 'XML'
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <style name="AppTheme" parent="Theme.AppCompat.NoActionBar">
-                  <item name="colorPrima
+      - uses: actions/upload-artifact@v4
+        with:
+          name: world-monitor-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
