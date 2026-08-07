@@ -1,27 +1,195 @@
-リアルタイム化しました。数字が動くたびに**上昇なら青緑、下落なら赤に一瞬光ります。**
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0A0D13">
+<title>NEWS</title>
+<style>
+:root{--bg:#0a0d13;--bg2:#0f1420;--panel:#121826;--line:#232b3d;--amber:#e8a33d;--cyan:#4fd1c5;--red:#e5484d;--gold:#d4af37;--text:#e4e7ec;--muted:#6b7688;--muted2:#4a5468}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;height:100%;overflow-x:hidden;overscroll-behavior:none}
+.mono{font-family:ui-monospace,monospace}
+header{position:sticky;top:0;z-index:30;background:#0d1119;border-bottom:1px solid var(--line);padding:calc(10px + env(safe-area-inset-top)) 14px 8px}
+.brow{display:flex;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:8px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--amber);box-shadow:0 0 8px var(--amber);animation:pulse 1.8s infinite}
+.dot.live{background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation:pulse .9s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+.btitle{font-family:ui-monospace,monospace;font-weight:800;font-size:15px;letter-spacing:3px}
+.bsub{font-size:9px;letter-spacing:1.5px;color:var(--muted);margin-top:1px}
+.clock{font-family:ui-monospace,monospace;font-size:13px;font-weight:600;color:var(--amber);text-align:right}
+.cdate{font-size:9px;color:var(--muted2);letter-spacing:1px;text-align:right}
+.scan{height:1px;margin-top:9px;background:linear-gradient(90deg,transparent,var(--amber),transparent);opacity:.55}
+nav{position:sticky;top:calc(52px + env(safe-area-inset-top));z-index:29;display:flex;overflow-x:auto;background:var(--bg2);border-bottom:1px solid var(--line)}
+nav::-webkit-scrollbar{display:none}
+nav button{flex:0 0 auto;background:none;border:none;color:var(--muted);font-family:ui-monospace,monospace;font-size:10.5px;letter-spacing:1.2px;padding:11px 14px;border-bottom:2px solid transparent;white-space:nowrap}
+nav button.active{color:var(--amber);border-bottom-color:var(--amber)}
+main{padding:14px 12px calc(40px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto}
+section{display:none}
+section.active{display:block}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:3px;margin-bottom:12px;overflow:hidden}
+.phead{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:1px solid var(--line);background:#0f1420}
+.tag{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:1.5px;color:var(--muted)}
+.tag b{color:var(--cyan)}
+.ts{font-family:ui-monospace,monospace;font-size:9px;color:var(--muted2)}
+.pbody{padding:10px 12px}
+.livedot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--cyan);margin-right:5px;animation:pulse 1s infinite}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:12px;transition:background .35s}
+.stat .n{font-family:ui-monospace,monospace;font-size:20px;font-weight:800;transition:color .35s}
+.stat .l{font-size:10px;letter-spacing:1px;color:var(--muted);margin-top:3px}
+.stat .c{font-family:ui-monospace,monospace;font-size:11px;font-weight:700;margin-top:4px}
+.c.up{color:var(--cyan)}.c.down{color:var(--red)}.c.flat{color:var(--muted)}
+.tick-up{color:var(--cyan)!important}.tick-down{color:var(--red)!important}
+.flash-up{background:#4fd1c514!important}.flash-down{background:#e5484d14!important}
+.row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);gap:10px;transition:background .35s}
+.row:last-child{border-bottom:none}
+.l1{font-size:13px;line-height:1.4}
+.l2{font-size:10.5px;color:var(--muted);margin-top:3px}
+.val{font-family:ui-monospace,monospace;font-size:13px;transition:color .35s}
+.pill{font-family:ui-monospace,monospace;font-size:11px;font-weight:700;padding:2px 7px;border-radius:20px;white-space:nowrap}
+.pill.up{color:var(--cyan);background:#4fd1c51a}
+.pill.down{color:var(--red);background:#e5484d1a}
+.pill.flat{color:var(--muted);background:#6b768822}
+.badge{font-family:ui-monospace,monospace;font-size:9px;color:var(--amber);border:1px solid #8a642a;padding:1px 5px;border-radius:2px;margin-right:6px}
+.big{font-family:ui-monospace,monospace;font-size:30px;font-weight:800;color:var(--gold);transition:color .35s}
+.bigsub{font-size:11px;color:var(--muted);margin-top:2px}
+.spark{width:100%;height:38px;display:block;margin-top:10px}
+.mag{font-family:ui-monospace,monospace;font-weight:800;font-size:13px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:4px;flex:0 0 auto;margin-right:10px}
+.m1{background:#4fd1c51f;color:var(--cyan)}.m2{background:#e8a33d1f;color:var(--amber)}.m3{background:#e5484d1f;color:var(--red)}
+.empty,.loading{padding:22px 8px;text-align:center;color:var(--muted);font-size:12px;font-family:ui-monospace,monospace}
+.err{color:var(--red)}
+.note{font-size:10px;color:var(--muted2);padding:8px 2px 0;line-height:1.5}
+.rbtn{background:none;border:1px solid var(--line);color:var(--muted);font-family:ui-monospace,monospace;font-size:9px;padding:3px 8px;border-radius:2px}
+footer{text-align:center;padding:10px;color:var(--muted2);font-family:ui-monospace,monospace;font-size:9px}
+a{color:inherit;text-decoration:none}
+</style>
+</head>
+<body>
+<header>
+<div class="brow">
+<div class="brand"><div class="dot" id="sdot"></div>
+<div><div class="btitle">NEWS</div><div class="bsub" id="stext">CONNECTING...</div></div></div>
+<div><div class="clock" id="clock">--:--:--</div><div class="cdate" id="cdate">JST</div></div>
+</div><div class="scan"></div>
+</header>
+<nav id="tabs">
+<button data-t="ov" class="active">概況</button>
+<button data-t="nw">ニュース</button>
+<button data-t="gd">金・商品</button>
+<button data-t="cr">暗号資産</button>
+<button data-t="fx">為替</button>
+<button data-t="qk">地震・災害</button>
+</nav>
+<main>
+<section class="active" id="s-ov">
+<div class="grid2" style="margin-bottom:12px">
+<div class="stat" id="stGold"><div class="n">--</div><div class="l">金 GOLD / USD</div><div class="c flat">--</div></div>
+<div class="stat" id="stBtc"><div class="n">--</div><div class="l">BTC / USD</div><div class="c flat">--</div></div>
+<div class="stat" id="stEth"><div class="n">--</div><div class="l">ETH / USD</div><div class="c flat">--</div></div>
+<div class="stat" id="stJpy"><div class="n">--</div><div class="l">USD / JPY</div><div class="c flat">--</div></div>
+</div>
+<div class="panel"><div class="phead"><span class="tag">主要ニュース <b>TOP</b></span><span class="ts">NHK</span></div>
+<div class="pbody" id="topNews"><div class="loading">読込中...</div></div></div>
+</section>
+<section id="s-nw"><div class="panel">
+<div class="phead"><span class="tag">国内・国際 <b>NEWS</b></span><button class="rbtn" onclick="loadNews()">更新</button></div>
+<div class="pbody" id="newsBody"><div class="loading">読込中...</div></div></div></section>
+<section id="s-gd">
+<div class="panel"><div class="phead"><span class="tag"><span class="livedot"></span>GOLD <b>現物</b></span><span class="ts" id="goldTs">--</span></div>
+<div class="pbody"
+  https://api.bitflyer.com/v1/ticker?product_code=BTC_JPY').then(function(r){return r.json();})
+.then(function(d){btcJpy=d.ltp;updJpy();}).catch(function(){});}
+function updJpy(){if(!btcUsd||!btcJpy)return;
+usdJpy=btcJpy/btcUsd;
+var ch=jpyRef?((usdJpy-jpyRef)/jpyRef)*100:null;
+setStat('stJpy','sJ',usdJpy,usdJpy.toFixed(2),ch);
+document.getElementById('jpyTs').textContent=jt();
+if(!document.getElementById('jpyPx')){
+document.getElementById('jpyBody').innerHTML='<div style="text-align:center;padding:8px 0 12px">'+
+'<div class="big" id="jpyPx" style="color:#e8a33d">--</div>'+
+'<div class="bigsub">USD / JPY ・ 暗号資産クロス推定</div>'+
+'<div style="margin-top:8px" id="jpyCh"></div></div>'+
+'<div class="note">BTC/JPY(bitFlyer)とBTC/USD(Binance)の比から算出した推定値です。数秒ごとに動きますが、実際の銀行間レートとは0.1〜0.5%程度ずれます。正確な値は下の主要通貨を参照してください。</div>';}
+var px=document.getElementById('jpyPx');
+px.textContent=usdJpy.toFixed(3);flash(px,'jPx',usdJpy);
+document.getElementById('jpyCh').innerHTML=ch===null?'':pill(ch);}
 
-**更新頻度:**
+function stooq(sym){return fetch('https://stooq.com/q/d/l/?s='+sym+'&i=d').then(function(r){return r.text();})
+.then(function(t){var L=t.trim().split('\n');if(L.length<3)throw 0;
+var a=L[L.length-1].split(','),b=L[L.length-2].split(',');
+var c=parseFloat(a[4]),p=parseFloat(b[4]);
+if(isNaN(c)||isNaN(p))throw 0;
+return {date:a[0],close:c,prev:p,change:((c-p)/p)*100};});}
+function loadComm(){
+var items=[{s:'gc.f',n:'金先物',u:'GOLD (GC)'},{s:'si.f',n:'銀先物',u:'SILVER (SI)'},
+{s:'hg.f',n:'銅先物',u:'COPPER (HG)'},{s:'cl.f',n:'WTI原油',u:'CRUDE (CL)'},
+{s:'ng.f',n:'天然ガス',u:'NATGAS (NG)'}];
+var out=[];var i=0;
+function next(){if(i>=items.length){document.getElementById('commBody').innerHTML=out.join('');return;}
+var it=items[i++];
+stooq(it.s).then(function(d){if(it.s==='gc.f')goldPrev=d.prev;
+out.push('<div class="row"><div><div class="l1">'+it.n+'</div><div class="l2">'+it.u+' ・ '+d.date+'</div></div>'+
+'<div style="text-align:right"><div class="val">'+d.close.toLocaleString(undefined,{maximumFractionDigits:3})+'</div>'+pill(d.change)+'</div></div>');next();})
+.catch(function(){out.push('<div class="row"><div><div class="l1">'+it.n+'</div><div class="l2 err">取得失敗</div></div></div>');next();});}
+next();}
 
-| データ | 更新 | 方式 |
-|---|---|---|
-| 暗号資産10銘柄 | **1秒ごと** | WebSocket常時接続 |
-| 金スポット | 10秒ごと | ポーリング + スパークライン |
-| USD/JPY | 5秒ごと | 暗号資産クロスから推定 |
-| 先物・商品 | 5分 | 前日比 |
-| ニュース・地震 | 5分 | |
+function loadFx(){var P=['JPY','EUR','GBP','CNY','KRW','AUD','CAD','CHF'];
+function f(d){return d.toISOString().slice(0,10);}
+fetch('https://api.frankfurter.app/'+f(new Date(Date.now()-12*86400000))+'..'+f(new Date())+'?from=USD&to='+P.join(','))
+.then(function(r){return r.json();}).then(function(data){
+var ds=Object.keys(data.rates).sort();
+var cur=data.rates[ds[ds.length-1]],prv=data.rates[ds[ds.length-2]];
+jpyRef=cur.JPY||null;var h='';
+for(var i=0;i<P.length;i++){var p=P[i],c=cur[p];if(c===undefined)continue;
+var ch=(prv&&prv[p])?((c-prv[p])/prv[p])*100:null;
+h+='<div class="row"><div><div class="l1">USD / '+p+'</div><div class="l2">'+ds[ds.length-1]+' 基準</div></div>'+
+'<div style="text-align:right"><div class="val">'+c.toFixed(c>10?2:4)+'</div>'+(ch===null?'':pill(ch))+'</div></div>';}
+document.getElementById('fxBody').innerHTML=h+'<div class="note">欧州中央銀行の公表レート(1日1回更新)です。リアルタイム値は上のパネルを参照してください。</div>';})
+.catch(function(){document.getElementById('fxBody').innerHTML='<div class="empty err">為替データの取得に失敗しました。</div>';});}
 
-ヘッダーの点が**青緑に光っていれば接続中**です。切れても自動で再接続します。
+function loadQuakes(){
+fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_week.geojson')
+.then(function(r){return r.json();}).then(function(d){
+var f=d.features.sort(function(a,b){return b.properties.mag-a.properties.mag;}).slice(0,15);
+var h='';for(var i=0;i<f.length;i++){var p=f[i].properties,m=p.mag;
+var cl=m>=6?'m3':(m>=5.5?'m2':'m1');
+h+='<div class="row"><div style="display:flex;align-items:center">'+
+'<div class="mag '+cl+'">'+m.toFixed(1)+'</div><div><div class="l1">'+(p.place||'不明')+'</div>'+
+'<div class="l2">'+ago(p.time)+' ・ 深さ '+f[i].geometry.coordinates[2].toFixed(0)+'km</div></div></div></div>';}
+document.getElementById('qkBody').innerHTML=h||'<div class="empty">該当なし</div>';})
+.catch(function(){document.getElementById('qkBody').innerHTML='<div class="empty err">取得失敗</div>';});}
 
----
+var FEEDS=[{u:'https://www.nhk.or.jp/rss/news/cat0.xml',l:'NHK 主要'},
+{u:'https://www.nhk.or.jp/rss/news/cat6.xml',l:'NHK 国際'},
+{u:'https://www.nhk.or.jp/rss/news/cat5.xml',l:'NHK ビジネス'}];
+function loadNews(){
+var ps=FEEDS.map(function(f){
+return fetch('https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(f.u))
+.then(function(r){return r.json();}).then(function(d){
+if(d.status!=='ok')throw 0;
+return d.items.map(function(i){return {t:i.title,l:i.link,d:i.pubDate,s:f.l};});})
+.catch(function(){return [];});});
+Promise.all(ps).then(function(res){
+var items=[];for(var i=0;i<res.length;i++)items=items.concat(res[i]);
+if(!items.length)throw 0;
+items.sort(function(a,b){return new Date(b.d)-new Date(a.d);});
+function rd(l){var h='';for(var i=0;i<l.length;i++){
+h+='<div class="row"><a href="'+l[i].l+'" target="_blank" style="display:block;width:100%">'+
+'<div class="l1">'+l[i].t+'</div><div class="l2">'+ago(l[i].d)+' ・ '+l[i].s+'</div></a></div>';}return h;}
+document.getElementById('newsBody').innerHTML=rd(items.slice(0,25));
+document.getElementById('topNews').innerHTML=rd(items.slice(0,5));})
+.catch(function(){
+document.getElementById('newsBody').innerHTML='<div class="empty err">ニュースの取得に失敗しました。</div>';
+document.getElementById('topNews').innerHTML='<div class="empty err">取得失敗</div>';});}
 
-**正直に言っておきたい点が2つあります。**
-
-**金の「スポット価格」は先物ではありません。** COMEXの金先物をリアルタイムで無料配信しているところがないので、現物スポット(XAU/USD)を秒単位で表示し、先物は前日比つきで別枠にしました。両者は数ドルしか違わないので実用上は問題ないはずです。
-
-**USD/JPYは推定値です。** 為替のリアルタイム無料配信も存在しないため、BTC/JPY ÷ BTC/USD で逆算しています。動きは本物ですが、実レートと0.1〜0.5%ずれます。正確な値は同じタブの下にECB公表レートを併記しました。
-
----
-
-**更新手順:** `github.com/yu777999/World/edit/main/www/index.html` → 全消し → 貼り付け → Commit。2分でAPKができます。
-
-アプリ名の `NEWS` 変更(workflowの `appName`)がまだなら、そちらも忘れずに。
+initCr();conn();loadComm();pollGold();loadFx();loadNews();loadQuakes();pollJpy();
+setInterval(pollGold,10000);setInterval(pollJpy,5000);
+setInterval(loadComm,300000);setInterval(loadFx,600000);
+setInterval(loadNews,300000);setInterval(loadQuakes,300000);
+document.addEventListener('visibilitychange',function(){
+if(!document.hidden&&(!ws||ws.readyState!==1))conn();});
+</script>
+</body>
+</html>
